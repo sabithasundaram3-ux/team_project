@@ -1,0 +1,28 @@
+ <!DOCTYPE html>
+<html>
+<head>
+    <title>Student Result Management System</title>
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+<div class="home">
+
+    <h1>Student Result Management System</h1>
+
+    <a href="{{ url_for('student_login') }}">
+        <button>Student Login</button>
+    </a>
+
+    <a href="{{ url_for('admin_login') }}">
+        <button>Admin Login</button>
+    </a>
+
+</div>
+
+</body>
+</html>
+
+
