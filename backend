@@ -1,0 +1,298 @@
+from flask import Flask, render_template, request, redirect, url_for, session
+import sqlite3
+
+app = Flask(__name__)
+app.secret_key = "student_result_secret"
+
+DB = "students.db"
+
+
+def get_db():
+    conn = sqlite3.connect(DB)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def create_database():
+    conn = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS students (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            register_no TEXT UNIQUE NOT NULL,
+            dob TEXT NOT NULL,
+            tamil INTEGER NOT NULL,
+            english INTEGER NOT NULL,
+            maths INTEGER NOT NULL,
+            science INTEGER NOT NULL,
+            social INTEGER NOT NULL,
+            total INTEGER NOT NULL,
+            percentage REAL NOT NULL,
+            result TEXT NOT NULL
+        )
+    """)
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS admins (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL
+        )
+    """)
+
+    # Default admin account
+    cursor.execute(
+        "SELECT * FROM admins WHERE username = ?",
+        ("admin",)
+    )
+
+    if cursor.fetchone() is None:
+        cursor.execute(
+            "INSERT INTO admins (username, password) VALUES (?, ?)",
+            ("admin", "admin123")
+        )
+
+    conn.commit()
+    conn.close()
+
+
+# ---------------- HOME ----------------
+
+@app.route("/")
+def home():
+    return render_template("index.html")
+
+
+# ---------------- STUDENT LOGIN ----------------
+
+@app.route("/student-login", methods=["GET", "POST"])
+def student_login():
+
+    if request.method == "POST":
+
+        register_no = request.form["register_no"]
+        dob = request.form["dob"]
+
+        conn = get_db()
+
+        student = conn.execute("""
+            SELECT * FROM students
+            WHERE register_no = ? AND dob = ?
+        """, (register_no, dob)).fetchone()
+
+        conn.close()
+
+        if student:
+            session["student_id"] = student["id"]
+            return redirect(url_for("marksheet"))
+
+        return render_template(
+            "student_login.html",
+            error="Invalid Register Number or Date of Birth"
+        )
+
+    return render_template("student_login.html")
+
+
+# ---------------- STUDENT MARKSHEET ----------------
+
+@app.route("/marksheet")
+def marksheet():
+
+    if "student_id" not in session:
+        return redirect(url_for("student_login"))
+
+    conn = get_db()
+
+    student = conn.execute(
+        "SELECT * FROM students WHERE id = ?",
+        (session["student_id"],)
+    ).fetchone()
+
+    conn.close()
+
+    return render_template("marksheet.html", student=student)
+
+
+# ---------------- ADMIN LOGIN ----------------
+
+@app.route("/admin-login", methods=["GET", "POST"])
+def admin_login():
+
+    if request.method == "POST":
+
+        username = request.form["username"]
+        password = request.form["password"]
+
+        conn = get_db()
+
+        admin = conn.execute("""
+            SELECT * FROM admins
+            WHERE username = ? AND password = ?
+        """, (username, password)).fetchone()
+
+        conn.close()
+
+        if admin:
+            session["admin"] = username
+            return redirect(url_for("admin_dashboard"))
+
+        return render_template(
+            "admin_login.html",
+            error="Invalid Username or Password"
+        )
+
+    return render_template("admin_login.html")
+
+
+# ---------------- ADMIN DASHBOARD ----------------
+
+@app.route("/admin-dashboard")
+def admin_dashboard():
+
+    if "admin" not in session:
+        return redirect(url_for("admin_login"))
+
+    conn = get_db()
+
+    students = conn.execute(
+        "SELECT * FROM students ORDER BY register_no"
+    ).fetchall()
+
+    fail_counts = {
+        "Tamil": conn.execute(
+            "SELECT COUNT(*) FROM students WHERE tamil < 35"
+        ).fetchone()[0],
+
+        "English": conn.execute(
+            "SELECT COUNT(*) FROM students WHERE english < 35"
+        ).fetchone()[0],
+
+        "Maths": conn.execute(
+            "SELECT COUNT(*) FROM students WHERE maths < 35"
+        ).fetchone()[0],
+
+        "Science": conn.execute(
+            "SELECT COUNT(*) FROM students WHERE science < 35"
+        ).fetchone()[0],
+
+        "Social": conn.execute(
+            "SELECT COUNT(*) FROM students WHERE social < 35"
+        ).fetchone()[0]
+    }
+
+    conn.close()
+
+    return render_template(
+        "admin_dashboard.html",
+        students=students,
+        fail_counts=fail_counts
+    )
+
+
+# ---------------- ADD STUDENT ----------------
+
+@app.route("/add-student", methods=["GET", "POST"])
+def add_student():
+
+    if "admin" not in session:
+        return redirect(url_for("admin_login"))
+
+    if request.method == "POST":
+
+        name = request.form["name"]
+        register_no = request.form["register_no"]
+        dob = request.form["dob"]
+
+        tamil = int(request.form["tamil"])
+        english = int(request.form["english"])
+        maths = int(request.form["maths"])
+        science = int(request.form["science"])
+        social = int(request.form["social"])
+
+        # Calculate total
+        total = tamil + english + maths + science + social
+
+        # Calculate percentage
+        percentage = total / 5
+
+        # Below 35 in any subject = FAIL
+        if min(tamil, english, maths, science, social) < 35:
+            result = "FAIL"
+        else:
+            result = "PASS"
+
+        conn = get_db()
+
+        try:
+            conn.execute("""
+                INSERT INTO students
+                (name, register_no, dob, tamil, english, maths,
+                 science, social, total, percentage, result)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                name, register_no, dob,
+                tamil, english, maths, science, social,
+                total, percentage, result
+            ))
+
+            conn.commit()
+
+        except sqlite3.IntegrityError:
+            conn.close()
+
+            return render_template(
+                "add_student.html",
+                error="Register Number already exists"
+            )
+
+        conn.close()
+
+        return redirect(url_for("admin_dashboard"))
+
+    return render_template("add_student.html")
+
+
+# ---------------- SEARCH ----------------
+
+@app.route("/search")
+def search():
+
+    if "admin" not in session:
+        return redirect(url_for("admin_login"))
+
+    register_no = request.args.get("register_no")
+
+    conn = get_db()
+
+    student = conn.execute(
+        "SELECT * FROM students WHERE register_no = ?",
+        (register_no,)
+    ).fetchone()
+
+    conn.close()
+
+    return render_template(
+        "marksheet.html",
+        student=student,
+        admin_view=True
+    )
+
+
+# ---------------- LOGOUT ----------------
+
+@app.route("/logout")
+def logout():
+
+    session.clear()
+
+    return redirect(url_for("home"))
+
+
+# ---------------- START ----------------
+
+if __name__ == "__main__":
+    create_database()
+    app.run(debug=True)
