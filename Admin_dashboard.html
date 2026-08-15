@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+<div class="dashboard">
+
+    <h1>Admin Dashboard</h1>
+
+    <a href="{{ url_for('add_student') }}">
+        <button>Add Student</button>
+    </a>
+
+    <h2>Search Student</h2>
+
+    <form action="{{ url_for('search') }}" method="GET">
+
+        <input type="text"
+               name="register_no"
+               placeholder="Register Number"
+               required>
+
+        <button type="submit">Search</button>
+
+    </form>
+
+    <h2>Student Records</h2>
+
+    <table>
+
+        <tr>
+            <th>Name</th>
+            <th>Register No</th>
+            <th>DOB</th>
+            <th>Total</th>
+            <th>Percentage</th>
+            <th>Result</th>
+        </tr>
+
+        {% for student in students %}
+
+        <tr>
+            <td>{{ student["name"] }}</td>
+            <td>{{ student["register_no"] }}</td>
+            <td>{{ student["dob"] }}</td>
+            <td>{{ student["total"] }}</td>
+            <td>{{ student["percentage"] }}%</td>
+            <td>{{ student["result"] }}</td>
+        </tr>
+
+        {% endfor %}
+
+    </table>
+
+    <h2>Subject-wise Failure Count</h2>
+
+    <table>
+
+        <tr>
+            <th>Subject</th>
+            <th>Students Failed</th>
+        </tr>
+
+        {% for subject, count in fail_counts.items() %}
+
+        <tr>
+            <td>{{ subject }}</td>
+            <td>{{ count }}</td>
+        </tr>
+
+        {% endfor %}
+
+    </table>
+
+    <br>
+
+    <a href="{{ url_for('logout') }}">Logout</a>
+
+</div>
+
+</body>
+</html>
