@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Marksheet</title>
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+<div class="marksheet">
+
+    {% if student %}
+
+    <h1>Student Marksheet</h1>
+
+    <p><b>Name:</b> {{ student["name"] }}</p>
+    <p><b>Register Number:</b> {{ student["register_no"] }}</p>
+    <p><b>Date of Birth:</b> {{ student["dob"] }}</p>
+
+    <table>
+
+        <tr>
+            <th>Subject</th>
+            <th>Marks</th>
+        </tr>
+
+        <tr>
+            <td>Tamil</td>
+            <td>{{ student["tamil"] }}</td>
+        </tr>
+
+        <tr>
+            <td>English</td>
+            <td>{{ student["english"] }}</td>
+        </tr>
+
+        <tr>
+            <td>Maths</td>
+            <td>{{ student["maths"] }}</td>
+        </tr>
+
+        <tr>
+            <td>Science</td>
+            <td>{{ student["science"] }}</td>
+        </tr>
+
+        <tr>
+            <td>Social</td>
+            <td>{{ student["social"] }}</td>
+        </tr>
+
+        <tr>
+            <th>Total</th>
+            <th>{{ student["total"] }}</th>
+        </tr>
+
+        <tr>
+            <th>Percentage</th>
+            <th>{{ student["percentage"] }}%</th>
+        </tr>
+
+        <tr>
+            <th>Result</th>
+            <th>{{ student["result"] }}</th>
+        </tr>
+
+    </table>
+
+    {% else %}
+
+    <h2>Student not found</h2>
+
+    {% endif %}
+
+    {% if admin_view %}
+        <a href="{{ url_for('admin_dashboard') }}">Back to Dashboard</a>
+    {% else %}
+        <a href="{{ url_for('logout') }}">Logout</a>
+    {% endif %}
+
+</div>
+
+</body>
+</html>
